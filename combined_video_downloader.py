@@ -28,28 +28,39 @@ def get_output_path(url):
     domain = urlparse(url).netloc.replace(".", "_")
     return OUTPUT_DIR / f"{domain}_video.mp4"
 
+from urllib.parse import urlparse
+import os
+
 def try_ytdlp(url, output_path, headers=None):
     try:
+        if ".m3u8" in url:
+            domain = urlparse(url).netloc.replace(".", "_")
+            output_name = str(output_path)
+        else:
+            output_name = str(output_path)
+
         cmd = [
-            "yt-dlp", url,
-            "-o", str(output_path),
+            "yt-dlp",
+            url,
+            "--force-generic-extractor",  # 💥 הכי חשוב!
+            "--referer", "https://www.foxsports.com",
+            "--user-agent", "Mozilla/5.0",
+            "-o", output_name,
             "--no-playlist",
             "--merge-output-format", "mp4",
-            "-f", "bestvideo+bestaudio/best",
+            "-f", "bestvideo+bestaudio/best"
         ]
-        if headers:
-            for k, v in headers.items():
-                if k and v and k.lower() in HEADER_ALLOWLIST:
-                    cmd += ["--add-header", f"{k}: {v}"]
-        # fallback referer if none provided (helps for mako CDN)
-        if not headers or "referer" not in {k.lower() for k in headers.keys()}:
-            cmd += ["--add-header", f"Referer: https://www.mako.co.il/"]
+
         subprocess.run(cmd, check=True)
         logging.info(f"✅ yt-dlp success: {url}")
         return True
     except Exception as e:
         logging.warning(f"❌ yt-dlp failed: {url} – {e}")
         return False
+
+
+
+
 
 def extract_m3u8_selenium(url):
     try:
